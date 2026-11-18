@@ -1,0 +1,16 @@
+{
+  "name": "calypso-backend",
+  "version": "1.0.0",
+  "main": "server.js",
+  "engines": {
+    "node": "20.x"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "youtube-dl-exec": "^3.0.0",
+    "node-fetch": "^2.6.7"
+  }
+}
