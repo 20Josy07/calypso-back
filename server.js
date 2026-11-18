@@ -42,7 +42,7 @@ app.get('/api/download', (req, res) => {
     const videoUrl = `https://youtube.com/watch?v=${id}`;
     
     // -f bestaudio: formato de audio, -g: URL directa
-    exec(`/usr/local/bin/yt-dlp -f bestaudio -g "${videoUrl}"`, (error, stdout, stderr) => {
+    exec(`./yt-dlp -f bestaudio -g "${videoUrl}"`, (error, stdout, stderr) => {
         if (error) {
             console.error('yt-dlp error:', stderr);
             return res.status(500).json({ error: 'Download extraction failed', details: stderr });
@@ -51,7 +51,7 @@ app.get('/api/download', (req, res) => {
         const directUrl = stdout.trim();
         
         // Obtenemos los metadatos básicos
-        exec(`/usr/local/bin/yt-dlp --print title --print uploader --print thumbnail "${videoUrl}"`, (infoErr, infoOut) => {
+        exec(`./yt-dlp --print title --print uploader --print thumbnail "${videoUrl}"`, (infoErr, infoOut) => {
             const [title, artist, cover] = infoOut ? infoOut.trim().split('\n') : ['Unknown', 'Unknown', ''];
             
             res.json({
