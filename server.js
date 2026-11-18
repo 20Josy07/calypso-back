@@ -6,7 +6,7 @@ const port = process.env.PORT || 3000;
 // Middleware para parsear JSON
 app.use(express.json());
 
-// API de Búsqueda (Usa YouTube Data API v3 - requiere YOUTUBE_API_KEY en Render)
+// API de Búsqueda (Usa YouTube Data API v3)
 app.get('/api/search', async (req, res) => {
     const { q } = req.query;
     if (!q) return res.status(400).json({ error: 'Missing query parameter' });
@@ -36,7 +36,7 @@ app.get('/api/search', async (req, res) => {
     }
 });
 
-// API de Descarga (Usa yt-dlp instalado en el servidor Render)
+// API de Descarga
 app.get('/api/download', (req, res) => {
     const { id } = req.query;
 
@@ -44,14 +44,13 @@ app.get('/api/download', (req, res) => {
         return res.status(400).json({ error: 'Missing video ID' });
     }
 
-    // Ejecutamos yt-dlp con el User-Agent necesario para evitar el error 403 de YouTube
-    // El binario yt-dlp debe estar en ./yt-dlp (logrado en el Build Command de Render)
-    const command = `./yt-dlp -f bestaudio -g --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" "https://youtube.com/watch?v=${id}"`;
+    // Construimos el comando para yt-dlp con User-Agent para evitar bloqueos 403
+    // El comando busca la mejor calidad de audio y obtiene la URL directa
+    const ytCommand = `./yt-dlp -f bestaudio -g --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" "https://youtube.com/watch?v=${id}"`;
 
     exec(ytCommand, (error, stdout, stderr) => {
         if (error) {
-            // Fallback: Si yt-dlp falla, devolvemos la URL de la página de YouTube
-            // (La app Android intentará procesar esto, pero el resultado dependerá de sus capacidades)
+            // Fallback: Si yt-dlp falla, devolvemos la URL directa de YouTube
             res.json({
                 ok: true,
                 directUrl: `https://www.youtube.com/watch?v=${id}`,
@@ -59,14 +58,14 @@ app.get('/api/download', (req, res) => {
                 artist: 'Artista desconocido',
                 cover: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
                 format: 'mp3',
-                warning: 'Se usó URL de YouTube directa por fallo en la extracción con yt-dlp.'
+                warning: 'Se usó URL de YouTube directa por fallo en la extracción.'
             });
             return;
         }
 
         const downloadUrl = stdout.trim();
 
-        // Intentamos obtener metadatos (título, artista, miniatura) en un segundo paso
+        // Obtenemos metadatos (título, artista, miniatura) en un paso aparte
         const metaCommand = `./yt-dlp --print title --print uploader --print thumbnail "https://youtube.com/watch?v=${id}"`;
         exec(metaCommand, (infoErr, infoOut) => {
             if (infoErr) {
@@ -96,12 +95,11 @@ app.get('/api/download', (req, res) => {
     });
 });
 
-// Ruta de bienvenida (opcional)
+// Ruta de bienvenida
 app.get('/', (req, res) => {
     res.json({ message: 'Calypso Backend API is running.' });
 });
 
-// Iniciar servidor
 app.listen(port, () => {
     console.log(`Calypso Backend running on port ${port}`);
 });
