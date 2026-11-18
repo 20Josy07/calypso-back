@@ -9,8 +9,7 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.19.2"
-    // "youtube-dl-exec": "eliminado"
-    // "node-fetch": "opcional, si lo usas en el search"
+    "express": "^4.19.2",
+    "node-fetch": "^2.6.7"
   }
 }
