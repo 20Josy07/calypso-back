@@ -1,21 +1,26 @@
 const express = require('express');
-const yt = require('youtube-dl-exec');
+const { exec } = require('child_process');
 const fetch = require('node-fetch');
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Middleware para JSON
+app.use(express.json());
+
+// API de Búsqueda
 app.get('/api/search', async (req, res) => {
     const { q } = req.query;
     if (!q) return res.status(400).json({ error: 'Missing query' });
 
     try {
-        // Usamos la API de Google para búsquedas rápidas (necesitas configurar la variable de entorno)
         const key = process.env.YOUTUBE_API_KEY;
         const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(q)}&type=video&maxResults=5&key=${key}`;
         const response = await fetch(url);
         const data = await response.json();
 
-        const tracks = (data.items || []).map(item => ({
+        if (!data.items) return res.status(500).json({ error: 'YouTube API error', details: data });
+
+        const tracks = data.items.map(item => ({
             id: item.id.videoId,
             title: item.snippet.title,
             artist: item.snippet.channelTitle,
@@ -28,29 +33,39 @@ app.get('/api/search', async (req, res) => {
     }
 });
 
-app.get('/api/download', async (req, res) => {
+// API de Descarga (Invocación directa de yt-dlp)
+app.get('/api/download', (req, res) => {
     const { id } = req.query;
     if (!id) return res.status(400).json({ error: 'Missing id' });
 
-    try {
-        // Extraer audio con yt-dlp. Asegúrate de tener yt-dlp en el path.
-        const url = await yt.exec(`https://youtube.com/watch?v=${id}`, ['-f', 'bestaudio', '-g']);
+    // Invocamos yt-dlp directamente desde el PATH configurado en Render
+    const videoUrl = `https://youtube.com/watch?v=${id}`;
+    
+    // -f bestaudio: formato de audio, -g: URL directa
+    exec(`/usr/local/bin/yt-dlp -f bestaudio -g "${videoUrl}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error('yt-dlp error:', stderr);
+            return res.status(500).json({ error: 'Download extraction failed', details: stderr });
+        }
 
-        // Obtenemos info básica para el cliente
-        const info = await yt.exec(`https://youtube.com/watch?v=${id}`, ['--print', 'title', '--print', 'uploader', '--print', 'thumbnail']);
-        const [title, artist, cover] = info.stdout.trim().split('\n');
-
-        res.json({
-            ok: true,
-            title,
-            artist,
-            cover,
-            directUrl: url.stdout.trim(),
-            format: 'mp3'
+        const directUrl = stdout.trim();
+        
+        // Obtenemos los metadatos básicos
+        exec(`/usr/local/bin/yt-dlp --print title --print uploader --print thumbnail "${videoUrl}"`, (infoErr, infoOut) => {
+            const [title, artist, cover] = infoOut ? infoOut.trim().split('\n') : ['Unknown', 'Unknown', ''];
+            
+            res.json({
+                ok: true,
+                title,
+                artist,
+                cover,
+                directUrl,
+                format: 'mp3'
+            });
         });
-    } catch (e) {
-        res.status(500).json({ error: 'Download extraction failed' });
-    }
+    });
 });
 
-app.listen(port, () => console.log(`Server running on port ${port}`));
+app.listen(port, () => {
+    console.log(`Calypso Backend running on port ${port}`);
+});
